@@ -1,12 +1,14 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations;
+using UserTestAPI.DB;
 using UserTestAPI.Interfaces;
 using UserTestAPI.Models;
 
 namespace UserTestAPI.Controllers
 {
     [ApiController]
-    [Route("[controller]")]
+    [Route("api/[controller]")]
     public class UserController : ControllerBase
     {
 
@@ -31,12 +33,30 @@ namespace UserTestAPI.Controllers
             }
         }
 
-        [HttpGet("GetByName")]
-        public IEnumerable<User> GetByName([FromQuery] string name)
+        [HttpDelete(Name = "DeleteUser")]
+        public IActionResult DeleteUser([FromQuery][Required] int userId ,[FromQuery] string username = "")
         {
             try
             {
-                var users = _appDbContext.Users.Where(u => u.Name == name).ToList();
+               var user = _appDbContext.Users.FirstOrDefault(u => u.Id == userId || (username != null && u.Name == username));
+
+                _appDbContext.Users.Remove(user);
+
+                _appDbContext.Save();
+                return Ok($"user with id: {user.Id} and name: {user.Name} deleted");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpGet("GetByName")]
+        public ActionResult<IEnumerable<User>> GetByName([FromQuery] string name)
+        {
+            try
+            {
+                var users = _appDbContext.Users.Where(u => u.Name.Contains(name)).ToList();
 
                 if (users == null || users.Count == 0)
                 {
@@ -48,9 +68,7 @@ namespace UserTestAPI.Controllers
             }
             catch (Exception ex)
             {
-                return new List<User>();
-
-                //return BadRequest(ex.Message);
+               return BadRequest(ex.Message);
             }
         }
 
@@ -60,6 +78,7 @@ namespace UserTestAPI.Controllers
         {
             try
             {
+
                 var user = new User
                 {
                     Name = name,
@@ -74,6 +93,27 @@ namespace UserTestAPI.Controllers
                 return Ok("created");
             }
             catch(Exception ex)
+            {
+                return BadRequest($"Oops: {ex.Message}");
+            }
+        }
+
+        [HttpPut(Name = "Update")]
+        public IActionResult Update([FromQuery] int id, [FromQuery] string name, [FromQuery] string email)
+        {
+            try
+            {
+                var user = _appDbContext.Users.FirstOrDefault(user => user.Id == id);
+                user.Name = name;
+                user.Email = email;
+
+                _appDbContext.Users.Update(user);
+
+                _appDbContext.Save();
+
+                return Ok("updated");
+            }
+            catch (Exception ex)
             {
                 return BadRequest($"Oops: {ex.Message}");
             }
